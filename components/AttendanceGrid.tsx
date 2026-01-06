@@ -46,12 +46,21 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
   const [tempHosts, setTempHosts] = useState<string[]>([]);
   const [tempCount, setTempCount] = useState<number>(1);
   
+  // 로컬 시간 기준 YYYY-MM-DD 생성 함수
+  const getLocalDateStr = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const dateStr = getLocalDateStr(selectedDate);
+  
   // 세션 이동 관련 상태
   const [movingIdx, setMovingIdx] = useState<number | null>(null);
-  const [moveTargetDate, setMoveTargetDate] = useState(selectedDate.toISOString().split('T')[0]);
+  const [moveTargetDate, setMoveTargetDate] = useState(dateStr);
   const [moveTargetIdx, setMoveTargetIdx] = useState(0);
 
-  const dateStr = selectedDate.toISOString().split('T')[0];
   const currentDailyAttendance = attendance[dateStr] || {};
 
   useEffect(() => {
@@ -145,8 +154,8 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
         <div className="flex items-center justify-between mb-4 px-2">
           <h4 className="font-bold text-slate-800">{currentYear}년 {currentMonth + 1}월</h4>
           <div className="flex gap-1">
-            <button onClick={() => setSelectedDate(new Date(currentYear, currentMonth - 1, 1))} className="p-1.5 hover:bg-slate-100 rounded-lg"><ChevronLeft className="w-4 h-4" /></button>
-            <button onClick={() => setSelectedDate(new Date(currentYear, currentMonth + 1, 1))} className="p-1.5 hover:bg-slate-100 rounded-lg"><ChevronRight className="w-4 h-4" /></button>
+            <button onClick={(e) => { e.stopPropagation(); setSelectedDate(new Date(currentYear, currentMonth - 1, 1)); }} className="p-1.5 hover:bg-slate-100 rounded-lg"><ChevronLeft className="w-4 h-4" /></button>
+            <button onClick={(e) => { e.stopPropagation(); setSelectedDate(new Date(currentYear, currentMonth + 1, 1)); }} className="p-1.5 hover:bg-slate-100 rounded-lg"><ChevronRight className="w-4 h-4" /></button>
           </div>
         </div>
         <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-2">
@@ -156,13 +165,13 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
           {days.map((day, idx) => {
             if (day === null) return <div key={`empty-${idx}`} className="h-9" />;
             const targetDate = new Date(currentYear, currentMonth, day);
-            const targetDateStr = targetDate.toISOString().split('T')[0];
+            const targetDateStr = getLocalDateStr(targetDate);
             const isSelected = targetDateStr === dateStr;
             const hasData = !!attendance[targetDateStr];
             return (
               <button
                 key={day}
-                onClick={() => { setSelectedDate(targetDate); setShowCalendar(false); }}
+                onClick={(e) => { e.stopPropagation(); setSelectedDate(targetDate); setShowCalendar(false); }}
                 className={`h-9 w-full flex flex-col items-center justify-center rounded-xl transition-all relative ${isSelected ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-100 text-slate-700'}`}
               >
                 <span className="text-xs">{day}</span>

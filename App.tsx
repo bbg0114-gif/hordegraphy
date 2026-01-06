@@ -27,6 +27,14 @@ const App: React.FC = () => {
   const [globalSessionNames, setGlobalSessionNames] = useState<string[]>(DEFAULT_SESSIONS);
   const [clubLink, setClubLink] = useState('');
 
+  // 로컬 시간 기준 YYYY-MM-DD 생성 함수
+  const getLocalDateStr = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const loadData = () => {
     setMembers(storageService.getMembers());
     setBannedMembers(storageService.getBannedMembers());
@@ -72,7 +80,7 @@ const App: React.FC = () => {
     sessionStorage.setItem('is_admin', status.toString());
   };
 
-  const dateStr = selectedDate.toISOString().split('T')[0];
+  const dateStr = getLocalDateStr(selectedDate);
   
   const currentDailyMeta = metadata[dateStr] || {};
   const currentSessionNames = currentDailyMeta.sessionNames || globalSessionNames;
@@ -158,7 +166,7 @@ const App: React.FC = () => {
       id: crypto.randomUUID(),
       name,
       reason,
-      bannedAt: new Date().toISOString().split('T')[0]
+      bannedAt: getLocalDateStr(new Date())
     };
     const updated = [...bannedMembers, newBanned];
     setBannedMembers(updated);
@@ -247,7 +255,6 @@ const App: React.FC = () => {
     const currentAtt = isOnline ? { ...onlineAttendance } : { ...attendance };
     const currentMeta = isOnline ? { ...onlineMetadata } : { ...metadata };
     
-    // 1. Attendance 이동
     if (currentAtt[srcDate]) {
       if (!currentAtt[targetDate]) currentAtt[targetDate] = {};
       
@@ -261,13 +268,11 @@ const App: React.FC = () => {
         targetMemberSessions[targetIdx] = val;
         currentAtt[targetDate][memberId] = targetMemberSessions;
         
-        // 원본 세션 초기화
         srcMemberSessions[srcIdx] = 0;
         currentAtt[srcDate][memberId] = srcMemberSessions;
       });
     }
 
-    // 2. Metadata 이동
     if (currentMeta[srcDate]) {
       if (!currentMeta[targetDate]) {
         currentMeta[targetDate] = {
