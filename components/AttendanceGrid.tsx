@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Member, AttendanceRecord, SessionAttendance, AttendanceStatus } from '../types';
-import { Check, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search, Filter, Settings2, Grid, User, Plus, UserX, UserPlus } from 'lucide-react';
+import { Check, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search, Filter, Settings2, Grid, User, Plus, UserX, UserPlus, RotateCcw } from 'lucide-react';
 import { matchSearch } from '../utils/chosung';
 
 interface AttendanceGridProps {
@@ -10,11 +10,12 @@ interface AttendanceGridProps {
   selectedDate: Date;
   setSelectedDate: (date: Date) => void;
   onUpdate: (memberId: string, sessionIndex: number, value: any) => void;
+  onResetDate: () => void;
   sessionNames: string[];
   sessionHosts: string[];
   sessionCount: number;
   onUpdateMetadata: (names: string[], hosts: string[], count: number) => void;
-  onAddMember: (name: string) => void;
+  onAddMember: (name: string, joinedAt: string) => void;
   isAdmin: boolean;
   title: string;
 }
@@ -25,6 +26,7 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
   selectedDate, 
   setSelectedDate, 
   onUpdate,
+  onResetDate,
   sessionNames,
   sessionHosts,
   sessionCount,
@@ -86,7 +88,8 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
   const handleQuickAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (quickAddName.trim() && isAdmin) {
-      onAddMember(quickAddName.trim());
+      // Pass the selected date as the joinedAt date for the new member
+      onAddMember(quickAddName.trim(), dateStr);
       setQuickAddName('');
     }
   };
@@ -107,7 +110,6 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
   // 세션별 참석 인원 계산
   const sessionTotalAttended = useMemo(() => {
     const totals = [0, 0, 0, 0];
-    // Added explicit type casting to SessionAttendance[] to resolve 'unknown' type error in forEach
     (Object.values(currentDailyAttendance) as SessionAttendance[]).forEach(statusArray => {
       statusArray.forEach((status, idx) => {
         if (status === 1) totals[idx]++;
@@ -194,6 +196,15 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
               <Filter className={`w-4 h-4 ${showOnlyMarked ? 'text-white' : 'text-slate-400'}`} />
               {showOnlyMarked ? '활동자 집중' : '참석/노쇼만'}
             </button>
+            {isAdmin && (
+              <button
+                onClick={onResetDate}
+                className="p-2.5 lg:p-3 rounded-2xl bg-white border border-slate-200 text-red-400 hover:text-red-600 hover:bg-red-50 transition-all shadow-sm"
+                title="오늘 기록 초기화"
+              >
+                <RotateCcw className="w-5 h-5" />
+              </button>
+            )}
             <button
               onClick={() => { if (!isAdmin) return alert('관리자 권한이 필요합니다.'); setIsEditingMetadata(!isEditingMetadata); }}
               className={`p-2.5 lg:p-3 rounded-2xl transition-all shadow-sm border ${isEditingMetadata ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}

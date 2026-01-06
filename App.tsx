@@ -86,7 +86,7 @@ const App: React.FC = () => {
   const currentOnlineHosts = currentOnlineMeta.sessionHosts || ['', '', '', ''];
   const currentOnlineCount = currentOnlineMeta.sessionCount || 1;
 
-  const handleAddMember = (name: string) => {
+  const handleAddMember = (name: string, joinedAt: string = '2026-01-01') => {
     if (!isAdmin) return;
     if (bannedMembers.some(bm => bm.name === name)) {
       alert('해당 닉네임은 블랙리스트에 등록되어 있어 추가할 수 없습니다.');
@@ -95,7 +95,7 @@ const App: React.FC = () => {
     const newMember: Member = {
       id: crypto.randomUUID(),
       name,
-      joinedAt: '2026-01-01',
+      joinedAt: joinedAt,
       previousNames: []
     };
     const updated = [...members, newMember];
@@ -225,6 +225,24 @@ const App: React.FC = () => {
     storageService.saveOnlineAttendance(newAttendance);
   };
 
+  const handleResetDailyAttendance = (type: 'offline' | 'online') => {
+    if (!isAdmin) return;
+    const formatted = selectedDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
+    if (window.confirm(`${formatted}의 모든 ${type === 'offline' ? '벙' : '온라인'} 출석 기록을 초기화하시겠습니까?`)) {
+      if (type === 'offline') {
+        const newAttendance = { ...attendance };
+        delete newAttendance[dateStr];
+        setAttendance(newAttendance);
+        storageService.saveAttendance(newAttendance);
+      } else {
+        const newOnline = { ...onlineAttendance };
+        delete newOnline[dateStr];
+        setOnlineAttendance(newOnline);
+        storageService.saveOnlineAttendance(newOnline);
+      }
+    }
+  };
+
   const handleUpdateDailyMetadata = (names: string[], hosts: string[], count: number) => {
     if (!isAdmin) return;
     const newMetadata = { ...metadata };
@@ -303,6 +321,7 @@ const App: React.FC = () => {
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
           onUpdate={handleUpdateAttendance}
+          onResetDate={() => handleResetDailyAttendance('offline')}
           sessionNames={currentSessionNames}
           sessionHosts={currentSessionHosts}
           sessionCount={currentSessionCount}
@@ -320,6 +339,7 @@ const App: React.FC = () => {
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
           onUpdate={handleUpdateOnlineAttendance}
+          onResetDate={() => handleResetDailyAttendance('online')}
           sessionNames={currentOnlineNames}
           sessionHosts={currentOnlineHosts}
           sessionCount={currentOnlineCount}

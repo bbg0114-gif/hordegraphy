@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Member, AttendanceRecord, AttendanceStatus } from '../types';
-import { UserPlus, Trash2, Search, CalendarDays, Sparkles, UserCheck, Clock, AlertCircle, Edit2, Check, X, Lock, ShieldCheck, User as UserIcon, Save, Table as TableIcon, Users, UserRoundPlus, Zap, Trophy, Crown } from 'lucide-react';
+import { UserPlus, Trash2, Search, CalendarDays, Sparkles, UserCheck, Clock, AlertCircle, Edit2, Check, X, Lock, ShieldCheck, User as UserIcon, Save, Table as TableIcon, Users, UserRoundPlus, Zap, Trophy, Crown, UserX } from 'lucide-react';
 import { matchSearch } from '../utils/chosung';
 
 interface MemberManagerProps {
@@ -91,6 +91,20 @@ const MemberManager: React.FC<MemberManagerProps> = ({
       Object.values(rec).forEach(day => {
         if (day[memberId]) {
           total += day[memberId].filter(s => Number(s) === 1).length;
+        }
+      });
+    }
+    calc(attendance);
+    calc(onlineAttendance);
+    return total;
+  };
+
+  const getTotalNoShowCount = (memberId: string) => {
+    let total = 0;
+    const calc = (rec: AttendanceRecord) => {
+      Object.values(rec).forEach(day => {
+        if (day[memberId]) {
+          total += day[memberId].filter(s => Number(s) === 2).length;
         }
       });
     }
@@ -260,6 +274,7 @@ const MemberManager: React.FC<MemberManagerProps> = ({
                 filteredMembers.map((member) => {
                   const lastAttendance = getLastAttendanceDate(member.id);
                   const totalAttendance = getTotalAttendanceCount(member.id);
+                  const totalNoShow = getTotalNoShowCount(member.id);
                   const isNewThisMonth = member.joinedAt.startsWith(monthPrefix);
                   const daysPassed = lastAttendance ? getDaysDiff(lastAttendance) : 0;
                   const isInactive = lastAttendance && ((isNewThisMonth && daysPassed >= 60) || (!isNewThisMonth && daysPassed >= 120));
@@ -288,10 +303,16 @@ const MemberManager: React.FC<MemberManagerProps> = ({
                       </div>
 
                       <div className="flex items-center gap-6 lg:gap-10">
-                        {/* Attendance Count moved to the right and enlarged */}
-                        <div className="flex flex-col items-center">
-                          <span className="text-2xl lg:text-3xl font-black text-slate-800 tracking-tighter leading-none">{totalAttendance}</span>
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">SESSIONS</span>
+                        {/* Attendance Count with No-show small below */}
+                        <div className="flex flex-col items-end">
+                          <div className="flex items-center gap-1">
+                            <span className="text-2xl lg:text-3xl font-black text-slate-800 tracking-tighter leading-none">{totalAttendance}</span>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">SESSIONS</span>
+                          </div>
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="text-xs font-black text-red-400 leading-none">{totalNoShow}</span>
+                            <span className="text-[8px] font-black text-red-300 uppercase tracking-widest">NO-SHOWS</span>
+                          </div>
                         </div>
 
                         {isAdmin && (
