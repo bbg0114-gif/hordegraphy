@@ -15,7 +15,7 @@ import {
   Camera,
   MessageSquareQuote,
   Crown,
-  Eye
+  BarChart3
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -33,11 +33,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, is
 
   const menuItems = [
     { id: ViewMode.DASHBOARD, label: 'HOME', fullLabel: 'HOME', icon: LayoutDashboard },
-    { id: ViewMode.ATTENDANCE, label: '오프라인', fullLabel: '벙 참여 현황', icon: CalendarCheck },
-    { id: ViewMode.ONLINE_ATTENDANCE, label: '온라인', fullLabel: '온라인 벙 현황', icon: Globe },
+    { id: ViewMode.ATTENDANCE, label: '현황', fullLabel: '벙 참여 현황', icon: CalendarCheck },
+    { id: ViewMode.MONTHLY_STATISTICS, label: '월별', fullLabel: '월별 참여 현황', icon: BarChart3 },
     { id: ViewMode.HALL_OF_FAME, label: '벙왕', fullLabel: '역대 벙왕', icon: Crown },
     { id: ViewMode.MEMBERS, label: '회원', fullLabel: '회원 관리', icon: Users },
     { id: ViewMode.SUGGESTIONS, label: '건의함', fullLabel: '건의함', icon: MessageSquareQuote },
+    { id: ViewMode.ONLINE_ATTENDANCE, label: '온라인', fullLabel: '온라인 벙 현황', icon: Globe },
     { id: ViewMode.BLACKLIST, label: '블랙', fullLabel: '블랙리스트 관리', icon: UserX },
     { id: ViewMode.AI_REPORT, label: 'AI', fullLabel: 'AI 분석 리포트', icon: Sparkles },
     { id: ViewMode.SETTINGS, label: '설정', fullLabel: '설정 및 백업', icon: SettingsIcon },
@@ -74,7 +75,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, is
           <p className="text-[10px] font-bold text-slate-400 mt-1 tracking-widest uppercase">Photography Club</p>
         </div>
         
-        <nav className="flex-1 px-4 space-y-1">
+        <nav className="flex-1 px-4 space-y-1 overflow-y-auto pb-6">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -94,7 +95,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, is
         <div className="p-6 border-t border-slate-100">
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">System Status</p>
-            <p className="text-xs font-bold text-slate-600 mt-1">v1.5.0 Cloud-Sync</p>
+            <p className="text-xs font-bold text-slate-600 mt-1">v1.6.0 Stats-Plus</p>
           </div>
         </div>
       </aside>
@@ -158,17 +159,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, is
         </div>
 
         {/* Mobile Nav */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 h-16 flex items-center justify-around px-2 z-40 shadow-xl">
-          {menuItems.slice(0, 5).concat(menuItems.slice(6, 8)).map((item) => (
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 h-16 flex items-center justify-around px-2 z-40 shadow-xl overflow-x-auto">
+          {menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveView(item.id)}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
+              className={`flex flex-col items-center justify-center gap-1 min-w-[50px] flex-1 h-full transition-colors ${
                 activeView === item.id ? 'text-blue-600' : 'text-slate-400'
               }`}
             >
               <item.icon className={`w-5 h-5 ${activeView === item.id ? 'scale-110' : ''}`} />
-              <span className="text-[9px] font-black uppercase tracking-tighter">
+              <span className="text-[8px] font-black uppercase tracking-tighter">
                 {item.label}
               </span>
             </button>

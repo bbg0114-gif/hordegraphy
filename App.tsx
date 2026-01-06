@@ -9,6 +9,7 @@ import Settings from './components/Settings';
 import BlacklistManager from './components/BlacklistManager';
 import SuggestionBox from './components/SuggestionBox';
 import HallOfFame from './components/HallOfFame';
+import MonthlyStatistics from './components/MonthlyStatistics';
 import { Member, AttendanceRecord, ViewMode, SessionAttendance, MetadataRecord, BannedMember, Suggestion, HallOfFameEntry, AttendanceStatus, FirebaseConfig } from './types';
 import { storageService, DEFAULT_SESSIONS } from './services/storageService';
 
@@ -456,6 +457,16 @@ const App: React.FC = () => {
           onAddMember={handleAddMember}
           isAdmin={isAdmin}
           title="벙 참여 현황"
+        />
+      )}
+
+      {activeView === ViewMode.MONTHLY_STATISTICS && (
+        <MonthlyStatistics 
+          members={members}
+          attendance={attendance}
+          metadata={metadata}
+          selectedMonth={selectedDate}
+          setSelectedMonth={setSelectedDate}
         />
       )}
 
