@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Member, AttendanceRecord, SessionAttendance, AttendanceStatus } from '../types';
-import { Check, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search, Filter, Settings2, Grid, User, Plus, UserX, UserPlus, RotateCcw } from 'lucide-react';
+import { Check, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search, Filter, Settings2, Grid, User, Plus, UserX, UserPlus, RotateCcw, ArrowRightLeft, X } from 'lucide-react';
 import { matchSearch } from '../utils/chosung';
 
 interface AttendanceGridProps {
@@ -11,6 +11,7 @@ interface AttendanceGridProps {
   setSelectedDate: (date: Date) => void;
   onUpdate: (memberId: string, sessionIndex: number, value: any) => void;
   onResetDate: () => void;
+  onMoveSession: (srcIdx: number, targetDate: string, targetIdx: number) => void;
   sessionNames: string[];
   sessionHosts: string[];
   sessionCount: number;
@@ -27,6 +28,7 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
   setSelectedDate, 
   onUpdate,
   onResetDate,
+  onMoveSession,
   sessionNames,
   sessionHosts,
   sessionCount,
@@ -44,6 +46,11 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
   const [tempHosts, setTempHosts] = useState<string[]>([]);
   const [tempCount, setTempCount] = useState<number>(1);
   
+  // 세션 이동 관련 상태
+  const [movingIdx, setMovingIdx] = useState<number | null>(null);
+  const [moveTargetDate, setMoveTargetDate] = useState(selectedDate.toISOString().split('T')[0]);
+  const [moveTargetIdx, setMoveTargetIdx] = useState(0);
+
   const dateStr = selectedDate.toISOString().split('T')[0];
   const currentDailyAttendance = attendance[dateStr] || {};
 
@@ -88,10 +95,15 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
   const handleQuickAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (quickAddName.trim() && isAdmin) {
-      // Pass the selected date as the joinedAt date for the new member
       onAddMember(quickAddName.trim(), dateStr);
       setQuickAddName('');
     }
+  };
+
+  const handleExecuteMove = () => {
+    if (movingIdx === null) return;
+    onMoveSession(movingIdx, moveTargetDate, moveTargetIdx);
+    setMovingIdx(null);
   };
 
   const filteredMembers = useMemo(() => {
@@ -107,7 +119,6 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
     });
   }, [members, searchTerm, showOnlyMarked, currentDailyAttendance]);
 
-  // 세션별 참석 인원 계산
   const sessionTotalAttended = useMemo(() => {
     const totals = [0, 0, 0, 0];
     (Object.values(currentDailyAttendance) as SessionAttendance[]).forEach(statusArray => {
@@ -239,6 +250,68 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
         </div>
       )}
 
+      {/* 세션 이동 모달 */}
+      {movingIdx !== null && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between mb-6">
+              <h4 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <ArrowRightLeft className="w-5 h-5 text-blue-600" />
+                세션 이동하기
+              </h4>
+              <button onClick={() => setMovingIdx(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Source Session</label>
+                <div className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold text-slate-600">
+                  {formattedDate} - {sessionNames[movingIdx]}
+                </div>
+              </div>
+
+              <div className="py-2 flex justify-center text-slate-300">
+                <ChevronRight className="w-8 h-8 rotate-90" />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Target Date</label>
+                <input 
+                  type="date" 
+                  value={moveTargetDate}
+                  onChange={(e) => setMoveTargetDate(e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Target Slot</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[0, 1, 2, 3].map(idx => (
+                    <button
+                      key={idx}
+                      onClick={() => setMoveTargetIdx(idx)}
+                      className={`py-3 rounded-xl font-bold text-xs transition-all border ${moveTargetIdx === idx ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100'}`}
+                    >
+                      {idx + 1}회
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button 
+                onClick={handleExecuteMove}
+                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-slate-800 transition-all shadow-xl active:scale-95"
+              >
+                기록 이동 실행
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isEditingMetadata && isAdmin && (
         <div className="bg-white border border-blue-200 p-4 lg:p-5 rounded-2xl shadow-md space-y-4 animate-in fade-in zoom-in-95 duration-200">
           <div className="flex items-center justify-between">
@@ -290,7 +363,7 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="p-3 lg:p-4 font-semibold text-slate-700 text-xs lg:text-sm sticky left-0 bg-slate-50 z-10 w-32 lg:w-40 border-r border-slate-100">이름</th>
                 {[...Array(sessionCount)].map((_, i) => (
-                  <th key={i} className="p-3 lg:p-4 font-semibold text-slate-700 text-center min-w-[120px]">
+                  <th key={i} className="p-3 lg:p-4 font-semibold text-slate-700 text-center min-w-[120px] relative group/header">
                     <span className="truncate block text-[10px] lg:text-xs text-slate-500">{sessionNames[i] || `모임 ${i+1}`}</span>
                     <div className="mt-1 flex items-center justify-center gap-1">
                       <div className="bg-blue-50 text-blue-600 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">벙주</div>
@@ -298,7 +371,16 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
                         {sessionHosts[i] || '-'}
                       </span>
                     </div>
-                    {/* 세션별 참석 인원 합계 표시 */}
+                    {/* 세션 이동 버튼 */}
+                    {isAdmin && (
+                      <button 
+                        onClick={() => setMovingIdx(i)}
+                        className="absolute -top-1 right-0 opacity-0 group-hover/header:opacity-100 p-1.5 text-slate-400 hover:text-blue-600 transition-all bg-white border border-slate-100 rounded-lg shadow-sm"
+                        title="이 세션 기록을 다른 날짜로 이동"
+                      >
+                        <ArrowRightLeft className="w-3 h-3" />
+                      </button>
+                    )}
                     <div className="mt-2 text-center">
                       <span className="inline-block bg-green-100 text-green-700 text-[10px] font-black px-2 py-0.5 rounded-full border border-green-200 shadow-sm">
                         참여: {sessionTotalAttended[i]}명
@@ -313,7 +395,6 @@ const AttendanceGrid: React.FC<AttendanceGridProps> = ({
               {filteredMembers.length > 0 ? (
                 filteredMembers.map((member) => {
                   const memberStatus: SessionAttendance = currentDailyAttendance[member.id] || [0, 0, 0, 0];
-                  // 활성화된 세션에 대해서만 합산 및 렌더링
                   const activeStatuses = memberStatus.slice(0, sessionCount);
                   const attendedCount = activeStatuses.filter(s => s === 1).length;
                   const noShowCount = activeStatuses.filter(s => s === 2).length;

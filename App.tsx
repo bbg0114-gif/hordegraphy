@@ -44,7 +44,6 @@ const App: React.FC = () => {
     const savedAdmin = sessionStorage.getItem('is_admin') === 'true';
     if (savedAdmin) setIsAdmin(true);
 
-    // Try to auto-init Firebase if config exists
     const cloudConfig = storageService.getFirebaseConfig();
     if (cloudConfig) {
       handleSetupFirebase(cloudConfig);
@@ -54,7 +53,6 @@ const App: React.FC = () => {
   const handleSetupFirebase = (config: FirebaseConfig) => {
     if (storageService.initFirebase(config)) {
       setIsCloudSyncing(true);
-      // Subscribe to real-time updates
       storageService.subscribe((data) => {
         if (data.members) setMembers(data.members);
         if (data.bannedMembers) setBannedMembers(data.bannedMembers);
@@ -243,6 +241,83 @@ const App: React.FC = () => {
     }
   };
 
+  const handleMoveSession = (srcDate: string, srcIdx: number, targetDate: string, targetIdx: number, isOnline: boolean) => {
+    if (!isAdmin) return;
+    
+    const currentAtt = isOnline ? { ...onlineAttendance } : { ...attendance };
+    const currentMeta = isOnline ? { ...onlineMetadata } : { ...metadata };
+    
+    // 1. Attendance 이동
+    if (currentAtt[srcDate]) {
+      if (!currentAtt[targetDate]) currentAtt[targetDate] = {};
+      
+      Object.keys(currentAtt[srcDate]).forEach(memberId => {
+        const srcMemberSessions = [...currentAtt[srcDate][memberId]] as SessionAttendance;
+        const val = srcMemberSessions[srcIdx];
+        
+        if (!currentAtt[targetDate][memberId]) currentAtt[targetDate][memberId] = [0, 0, 0, 0];
+        const targetMemberSessions = [...currentAtt[targetDate][memberId]] as SessionAttendance;
+        
+        targetMemberSessions[targetIdx] = val;
+        currentAtt[targetDate][memberId] = targetMemberSessions;
+        
+        // 원본 세션 초기화
+        srcMemberSessions[srcIdx] = 0;
+        currentAtt[srcDate][memberId] = srcMemberSessions;
+      });
+    }
+
+    // 2. Metadata 이동
+    if (currentMeta[srcDate]) {
+      if (!currentMeta[targetDate]) {
+        currentMeta[targetDate] = {
+          sessionNames: isOnline ? ['온라인 1','온라인 2','온라인 3','온라인 4'] : [...globalSessionNames],
+          sessionHosts: ['','','',''],
+          sessionCount: 1
+        };
+      }
+      
+      const srcNames = [...(currentMeta[srcDate].sessionNames || [])];
+      const srcHosts = [...(currentMeta[srcDate].sessionHosts || [])];
+      
+      const targetNames = [...(currentMeta[targetDate].sessionNames || [])];
+      const targetHosts = [...(currentMeta[targetDate].sessionHosts || [])];
+      
+      if (srcNames[srcIdx]) {
+        targetNames[targetIdx] = srcNames[srcIdx];
+        srcNames[srcIdx] = isOnline ? `온라인 ${srcIdx+1}` : `모임 ${srcIdx+1}`;
+      }
+      
+      if (srcHosts[srcIdx]) {
+        targetHosts[targetIdx] = srcHosts[srcIdx];
+        srcHosts[srcIdx] = '';
+      }
+      
+      currentMeta[targetDate].sessionNames = targetNames;
+      currentMeta[targetDate].sessionHosts = targetHosts;
+      if (currentMeta[targetDate].sessionCount! < targetIdx + 1) {
+        currentMeta[targetDate].sessionCount = targetIdx + 1;
+      }
+      
+      currentMeta[srcDate].sessionNames = srcNames;
+      currentMeta[srcDate].sessionHosts = srcHosts;
+    }
+
+    if (isOnline) {
+      setOnlineAttendance(currentAtt);
+      setOnlineMetadata(currentMeta);
+      storageService.saveOnlineAttendance(currentAtt);
+      storageService.saveOnlineMetadata(currentMeta);
+    } else {
+      setAttendance(currentAtt);
+      setMetadata(currentMeta);
+      storageService.saveAttendance(currentAtt);
+      storageService.saveMetadata(currentMeta);
+    }
+    
+    alert('세션 이동이 완료되었습니다.');
+  };
+
   const handleUpdateDailyMetadata = (names: string[], hosts: string[], count: number) => {
     if (!isAdmin) return;
     const newMetadata = { ...metadata };
@@ -322,6 +397,7 @@ const App: React.FC = () => {
           setSelectedDate={setSelectedDate}
           onUpdate={handleUpdateAttendance}
           onResetDate={() => handleResetDailyAttendance('offline')}
+          onMoveSession={(srcIdx, targetDate, targetIdx) => handleMoveSession(dateStr, srcIdx, targetDate, targetIdx, false)}
           sessionNames={currentSessionNames}
           sessionHosts={currentSessionHosts}
           sessionCount={currentSessionCount}
@@ -340,6 +416,7 @@ const App: React.FC = () => {
           setSelectedDate={setSelectedDate}
           onUpdate={handleUpdateOnlineAttendance}
           onResetDate={() => handleResetDailyAttendance('online')}
+          onMoveSession={(srcIdx, targetDate, targetIdx) => handleMoveSession(dateStr, srcIdx, targetDate, targetIdx, true)}
           sessionNames={currentOnlineNames}
           sessionHosts={currentOnlineHosts}
           sessionCount={currentOnlineCount}
