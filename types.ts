@@ -22,6 +22,15 @@ export interface Suggestion {
   createdAt: string;
 }
 
+export interface HallOfFameEntry {
+  id: string;
+  name: string;
+  imageData: string;
+  sessionCount: number;
+  year: number;
+  month: number;
+}
+
 export type AttendanceStatus = 0 | 1 | 2;
 export type SessionAttendance = [AttendanceStatus, AttendanceStatus, AttendanceStatus, AttendanceStatus];
 
@@ -58,6 +67,7 @@ export enum ViewMode {
   ATTENDANCE = 'ATTENDANCE',
   ONLINE_ATTENDANCE = 'ONLINE_ATTENDANCE',
   MEMBERS = 'MEMBERS',
+  HALL_OF_FAME = 'HALL_OF_FAME',
   SUGGESTIONS = 'SUGGESTIONS',
   AI_REPORT = 'AI_REPORT',
   SETTINGS = 'SETTINGS',

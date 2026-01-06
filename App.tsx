@@ -8,7 +8,8 @@ import AIReport from './components/AIReport';
 import Settings from './components/Settings';
 import BlacklistManager from './components/BlacklistManager';
 import SuggestionBox from './components/SuggestionBox';
-import { Member, AttendanceRecord, ViewMode, SessionAttendance, MetadataRecord, BannedMember, Suggestion, AttendanceStatus, FirebaseConfig } from './types';
+import HallOfFame from './components/HallOfFame';
+import { Member, AttendanceRecord, ViewMode, SessionAttendance, MetadataRecord, BannedMember, Suggestion, HallOfFameEntry, AttendanceStatus, FirebaseConfig } from './types';
 import { storageService, DEFAULT_SESSIONS } from './services/storageService';
 
 const App: React.FC = () => {
@@ -24,6 +25,7 @@ const App: React.FC = () => {
   const [metadata, setMetadata] = useState<MetadataRecord>({});
   const [onlineAttendance, setOnlineAttendance] = useState<AttendanceRecord>({});
   const [onlineMetadata, setOnlineMetadata] = useState<MetadataRecord>({});
+  const [hallOfFame, setHallOfFame] = useState<HallOfFameEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [globalSessionNames, setGlobalSessionNames] = useState<string[]>(DEFAULT_SESSIONS);
   const [clubLink, setClubLink] = useState('');
@@ -46,6 +48,7 @@ const App: React.FC = () => {
     setOnlineMetadata(storageService.getOnlineMetadata());
     setGlobalSessionNames(storageService.getGlobalSessionNames());
     setClubLink(storageService.getClubLink());
+    setHallOfFame(storageService.getHallOfFame());
   };
 
   useEffect(() => {
@@ -63,7 +66,6 @@ const App: React.FC = () => {
     if (storageService.initFirebase(config)) {
       setIsCloudSyncing(true);
       
-      // 접속자 추적 시작
       storageService.trackPresence((count) => {
         setOnlineUserCount(count);
       });
@@ -78,6 +80,7 @@ const App: React.FC = () => {
         if (data.globalSessionNames) setGlobalSessionNames(data.globalSessionNames);
         if (data.clubLink) setClubLink(data.clubLink);
         if (data.suggestions) setSuggestions(data.suggestions);
+        if (data.hallOfFame) setHallOfFame(data.hallOfFame);
       });
     }
   };
@@ -204,6 +207,24 @@ const App: React.FC = () => {
     const updated = suggestions.filter(s => s.id !== id);
     setSuggestions(updated);
     storageService.saveSuggestions(updated);
+  };
+
+  const handleAddHallOfFame = (entry: Omit<HallOfFameEntry, 'id'>) => {
+    if (!isAdmin) return;
+    const newEntry: HallOfFameEntry = {
+      ...entry,
+      id: crypto.randomUUID()
+    };
+    const updated = [...hallOfFame, newEntry];
+    setHallOfFame(updated);
+    storageService.saveHallOfFame(updated);
+  };
+
+  const handleDeleteHallOfFame = (id: string) => {
+    if (!isAdmin) return;
+    const updated = hallOfFame.filter(e => e.id !== id);
+    setHallOfFame(updated);
+    storageService.saveHallOfFame(updated);
   };
 
   const handleUpdateAttendance = (memberId: string, sessionIdx: number, value: any) => {
@@ -445,6 +466,16 @@ const App: React.FC = () => {
         />
       )}
       
+      {activeView === ViewMode.HALL_OF_FAME && (
+        <HallOfFame 
+          entries={hallOfFame}
+          members={members}
+          onAdd={handleAddHallOfFame}
+          onDelete={handleDeleteHallOfFame}
+          isAdmin={isAdmin}
+        />
+      )}
+
       {activeView === ViewMode.MEMBERS && (
         <MemberManager 
           members={members}

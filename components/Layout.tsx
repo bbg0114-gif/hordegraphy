@@ -14,6 +14,7 @@ import {
   Globe,
   Camera,
   MessageSquareQuote,
+  Crown,
   Eye
 } from 'lucide-react';
 
@@ -34,6 +35,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, is
     { id: ViewMode.DASHBOARD, label: 'HOME', fullLabel: 'HOME', icon: LayoutDashboard },
     { id: ViewMode.ATTENDANCE, label: '오프라인', fullLabel: '벙 참여 현황', icon: CalendarCheck },
     { id: ViewMode.ONLINE_ATTENDANCE, label: '온라인', fullLabel: '온라인 벙 현황', icon: Globe },
+    { id: ViewMode.HALL_OF_FAME, label: '벙왕', fullLabel: '역대 벙왕', icon: Crown },
     { id: ViewMode.MEMBERS, label: '회원', fullLabel: '회원 관리', icon: Users },
     { id: ViewMode.SUGGESTIONS, label: '건의함', fullLabel: '건의함', icon: MessageSquareQuote },
     { id: ViewMode.BLACKLIST, label: '블랙', fullLabel: '블랙리스트 관리', icon: UserX },
@@ -92,7 +94,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, is
         <div className="p-6 border-t border-slate-100">
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">System Status</p>
-            <p className="text-xs font-bold text-slate-600 mt-1">v1.5.0 Cloud-Free</p>
+            <p className="text-xs font-bold text-slate-600 mt-1">v1.5.0 Cloud-Sync</p>
           </div>
         </div>
       </aside>

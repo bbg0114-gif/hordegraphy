@@ -1,5 +1,5 @@
 
-import { Member, AttendanceRecord, MetadataRecord, BannedMember, Suggestion, FirebaseConfig } from '../types';
+import { Member, AttendanceRecord, MetadataRecord, BannedMember, Suggestion, HallOfFameEntry, FirebaseConfig } from '../types';
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getDatabase, ref, onValue, set, get, update, push, onDisconnect } from 'firebase/database';
 
@@ -12,6 +12,7 @@ const ONLINE_METADATA_KEY = 'club_online_metadata_v1';
 const GLOBAL_SESSIONS_KEY = 'club_global_sessions_v1';
 const CLUB_LINK_KEY = 'club_link_v1';
 const SUGGESTIONS_KEY = 'club_suggestions_v1';
+const HALL_OF_FAME_KEY = 'club_hall_of_fame_v1';
 const FIREBASE_CONFIG_KEY = 'club_firebase_config_v1';
 
 export const DEFAULT_SESSIONS = ['모임 1회', '모임 2회', '모임 3회', '모임 4회'];
@@ -19,7 +20,6 @@ export const DEFAULT_SESSIONS = ['모임 1회', '모임 2회', '모임 3회', '�
 let database: any = null;
 
 export const storageService = {
-  // Firebase Initialization
   initFirebase: (config: FirebaseConfig) => {
     try {
       const app = getApps().length === 0 ? initializeApp(config) : getApp();
@@ -39,7 +39,6 @@ export const storageService = {
 
   isCloudEnabled: () => database !== null,
 
-  // Subscription for Realtime updates
   subscribe: (callback: (data: any) => void) => {
     if (!database) return () => {};
     const dbRef = ref(database, '/');
@@ -49,34 +48,23 @@ export const storageService = {
     });
   },
 
-  // Presence Tracking (접속자 수 확인)
   trackPresence: (callback: (count: number) => void) => {
     if (!database) return;
-    
-    // 1. 현재 내 세션 등록
     const presenceRef = ref(database, 'presence');
     const myPresenceRef = push(presenceRef);
-    
-    // 접속 시 데이터 기록
     set(myPresenceRef, true);
-    
-    // 연결 끊길 시 자동 삭제 설정
     onDisconnect(myPresenceRef).remove();
-
-    // 2. 전체 접속자 수 감시
     onValue(presenceRef, (snapshot) => {
       const count = snapshot.size || 0;
       callback(count);
     });
   },
 
-  // Save all to Cloud
   saveToCloud: async (data: any) => {
     if (!database) return;
     await set(ref(database, '/'), data);
   },
 
-  // Local Storage Methods (Fallbacks)
   getMembers: (): Member[] => {
     const data = localStorage.getItem(MEMBERS_KEY);
     return data ? JSON.parse(data) : [];
@@ -148,6 +136,14 @@ export const storageService = {
     localStorage.setItem(SUGGESTIONS_KEY, JSON.stringify(suggestions));
     if (database) set(ref(database, 'suggestions'), suggestions);
   },
+  getHallOfFame: (): HallOfFameEntry[] => {
+    const data = localStorage.getItem(HALL_OF_FAME_KEY);
+    return data ? JSON.parse(data) : [];
+  },
+  saveHallOfFame: (entries: HallOfFameEntry[]) => {
+    localStorage.setItem(HALL_OF_FAME_KEY, JSON.stringify(entries));
+    if (database) set(ref(database, 'hallOfFame'), entries);
+  },
   
   exportAllData: () => {
     const data = {
@@ -160,6 +156,7 @@ export const storageService = {
       globalSessions: storageService.getGlobalSessionNames(),
       clubLink: storageService.getClubLink(),
       suggestions: storageService.getSuggestions(),
+      hallOfFame: storageService.getHallOfFame(),
       exportDate: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -183,6 +180,7 @@ export const storageService = {
       if (data.globalSessions) storageService.saveGlobalSessionNames(data.globalSessions);
       if (data.clubLink) storageService.saveClubLink(data.clubLink);
       if (data.suggestions) storageService.saveSuggestions(data.suggestions);
+      if (data.hallOfFame) storageService.saveHallOfFame(data.hallOfFame);
       
       if (database) {
         storageService.saveToCloud(data);
