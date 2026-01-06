@@ -215,7 +215,7 @@ const App: React.FC = () => {
       ...entry,
       id: crypto.randomUUID()
     };
-    const updated = [...hallOfFame, newEntry];
+    const updated = [newEntry, ...hallOfFame]; // 새로 등록한 것을 가장 앞에
     setHallOfFame(updated);
     storageService.saveHallOfFame(updated);
   };
@@ -225,6 +225,18 @@ const App: React.FC = () => {
     const updated = hallOfFame.filter(e => e.id !== id);
     setHallOfFame(updated);
     storageService.saveHallOfFame(updated);
+  };
+
+  const handleReorderHallOfFame = (index: number, direction: 'up' | 'down') => {
+    if (!isAdmin) return;
+    const newEntries = [...hallOfFame];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    if (targetIndex >= 0 && targetIndex < newEntries.length) {
+      [newEntries[index], newEntries[targetIndex]] = [newEntries[targetIndex], newEntries[index]];
+      setHallOfFame(newEntries);
+      storageService.saveHallOfFame(newEntries);
+    }
   };
 
   const handleUpdateAttendance = (memberId: string, sessionIdx: number, value: any) => {
@@ -472,6 +484,7 @@ const App: React.FC = () => {
           members={members}
           onAdd={handleAddHallOfFame}
           onDelete={handleDeleteHallOfFame}
+          onReorder={handleReorderHallOfFame}
           isAdmin={isAdmin}
         />
       )}

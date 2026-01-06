@@ -1,17 +1,18 @@
 
 import React, { useState, useRef } from 'react';
 import { HallOfFameEntry, Member } from '../types';
-import { Crown, Plus, Image as ImageIcon, Trash2, Calendar, User, History, X, Save, Upload } from 'lucide-react';
+import { Crown, Plus, Image as ImageIcon, Trash2, Calendar, User, History, X, Save, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface HallOfFameProps {
   entries: HallOfFameEntry[];
   members: Member[];
   onAdd: (entry: Omit<HallOfFameEntry, 'id'>) => void;
   onDelete: (id: string) => void;
+  onReorder: (index: number, direction: 'up' | 'down') => void;
   isAdmin: boolean;
 }
 
-const HallOfFame: React.FC<HallOfFameProps> = ({ entries, members, onAdd, onDelete, isAdmin }) => {
+const HallOfFame: React.FC<HallOfFameProps> = ({ entries, members, onAdd, onDelete, onReorder, isAdmin }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [name, setName] = useState('');
   const [sessionCount, setSessionCount] = useState(0);
@@ -44,10 +45,8 @@ const HallOfFame: React.FC<HallOfFameProps> = ({ entries, members, onAdd, onDele
     }
   };
 
-  const sortedEntries = [...entries].sort((a, b) => {
-    if (a.year !== b.year) return b.year - a.year;
-    return b.month - a.month;
-  });
+  // 수동 순서를 위해 정렬하지 않고 entries 그대로 사용
+  const displayEntries = entries;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-24">
@@ -183,9 +182,9 @@ const HallOfFame: React.FC<HallOfFameProps> = ({ entries, members, onAdd, onDele
       )}
 
       {/* Grid Display */}
-      {sortedEntries.length > 0 ? (
+      {displayEntries.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 lg:gap-12 px-2">
-          {sortedEntries.map((entry) => (
+          {displayEntries.map((entry, index) => (
             <div key={entry.id} className="group relative">
               {/* Photo Frame Style */}
               <div className="bg-white p-4 pb-8 lg:p-6 lg:pb-12 rounded-sm shadow-2xl transition-all duration-500 group-hover:-translate-y-4 group-hover:rotate-1 border-t-[1px] border-slate-100 relative overflow-hidden">
@@ -200,6 +199,26 @@ const HallOfFame: React.FC<HallOfFameProps> = ({ entries, members, onAdd, onDele
                       MONTHLY KING
                     </div>
                   </div>
+                  
+                  {/* Reorder Buttons Over Image */}
+                  {isAdmin && (
+                    <div className="absolute inset-x-0 bottom-0 p-2 flex justify-center gap-2 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        disabled={index === 0}
+                        onClick={() => onReorder(index, 'up')}
+                        className="p-2 bg-white/90 text-slate-900 rounded-full hover:bg-white disabled:opacity-30 disabled:hover:bg-white/90"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <button 
+                        disabled={index === displayEntries.length - 1}
+                        onClick={() => onReorder(index, 'down')}
+                        className="p-2 bg-white/90 text-slate-900 rounded-full hover:bg-white disabled:opacity-30 disabled:hover:bg-white/90"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Details */}
