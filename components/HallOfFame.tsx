@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { HallOfFameEntry, Member } from '../types';
-import { Crown, Plus, Image as ImageIcon, Trash2, Calendar, User, History, X, Save, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Crown, Plus, Image as ImageIcon, Trash2, Calendar, User, History, X, Save, Upload, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
 interface HallOfFameProps {
   entries: HallOfFameEntry[];
@@ -19,14 +19,49 @@ const HallOfFame: React.FC<HallOfFameProps> = ({ entries, members, onAdd, onDele
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [imageData, setImageData] = useState('');
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 이미지 리사이징 및 압축 함수
+  const compressImage = (base64Str: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 600; // 최대 너비 제한 (용량 최적화)
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // JPEG 형식으로 압축 (품질 0.7)
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        } else {
+          resolve(base64Str);
+        }
+      };
+    });
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsProcessingImage(true);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageData(reader.result as string);
+      reader.onloadend = async () => {
+        const rawBase64 = reader.result as string;
+        const compressed = await compressImage(rawBase64);
+        setImageData(compressed);
+        setIsProcessingImage(false);
       };
       reader.readAsDataURL(file);
     }
@@ -45,7 +80,6 @@ const HallOfFame: React.FC<HallOfFameProps> = ({ entries, members, onAdd, onDele
     }
   };
 
-  // 수동 순서를 위해 정렬하지 않고 entries 그대로 사용
   const displayEntries = entries;
 
   return (
@@ -99,15 +133,21 @@ const HallOfFame: React.FC<HallOfFameProps> = ({ entries, members, onAdd, onDele
                 <div className="space-y-6">
                   {/* Image Upload Area */}
                   <div 
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => !isProcessingImage && fileInputRef.current?.click()}
                     className={`relative aspect-[3/4] rounded-3xl border-4 border-dashed transition-all flex flex-col items-center justify-center cursor-pointer overflow-hidden ${imageData ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:border-amber-300 bg-slate-50'}`}
                   >
-                    {imageData ? (
+                    {isProcessingImage ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
+                        <p className="text-xs font-bold text-slate-400">이미지 최적화 중...</p>
+                      </div>
+                    ) : imageData ? (
                       <img src={imageData} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
                       <>
                         <Upload className="w-12 h-12 text-slate-300 mb-2" />
                         <p className="text-sm font-bold text-slate-400">대표 이미지 업로드</p>
+                        <p className="text-[10px] text-slate-300 mt-1 uppercase font-bold tracking-widest">Auto Resizing Enabled</p>
                       </>
                     )}
                     <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
@@ -169,7 +209,8 @@ const HallOfFame: React.FC<HallOfFameProps> = ({ entries, members, onAdd, onDele
 
                   <button 
                     onClick={handleSubmit}
-                    className="w-full py-5 bg-amber-500 text-white rounded-2xl font-black text-lg hover:bg-amber-600 transition-all shadow-xl shadow-amber-100 active:scale-95 flex items-center justify-center gap-2"
+                    disabled={isProcessingImage}
+                    className="w-full py-5 bg-amber-500 text-white rounded-2xl font-black text-lg hover:bg-amber-600 transition-all shadow-xl shadow-amber-100 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <Save className="w-6 h-6" />
                     명예의 전당 등록

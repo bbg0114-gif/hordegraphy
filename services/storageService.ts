@@ -3,8 +3,7 @@ import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getDatabase, ref, onValue, set, get, update, push, onDisconnect } from 'firebase/database';
 
 // -----------------------------------------------------------
-// [중요] 작성자님의 API Key를 여기에 심었습니다.
-// 이제 앱이 켜지자마자 이 설정으로 Firebase에 연결됩니다.
+// [중요] 작성자님의 API Key 설정 (앱 실행 시 즉시 연결됨)
 // -----------------------------------------------------------
 const firebaseConfig: FirebaseConfig = {
   apiKey: "AIzaSyBnp6vXjDZkRdVpGIaqec6g5qT9eTIRKbc",
@@ -18,11 +17,12 @@ const firebaseConfig: FirebaseConfig = {
 };
 
 // -----------------------------------------------------------
-// 앱 실행 시 즉시 연결 (Hardcoding Initialization)
+// Firebase 앱 초기화 (설정값이 있으므로 바로 실행)
 // -----------------------------------------------------------
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const database = getDatabase(app);
 
+// 로컬 스토리지 키 값들
 const MEMBERS_KEY = 'club_members_v1';
 const BANNED_KEY = 'club_banned_v1';
 const ATTENDANCE_KEY = 'club_attendance_v1';
@@ -54,7 +54,7 @@ export const storageService = {
     return onValue(dbRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        // 로컬 스토리지 싱크 (선택사항, 백업용)
+        // 로컬 스토리지 백업 (싱크 맞춤)
         if (data.members) localStorage.setItem(MEMBERS_KEY, JSON.stringify(data.members));
         if (data.attendance) localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(data.attendance));
         // 데이터 콜백 실행
@@ -175,8 +175,15 @@ export const storageService = {
     return data ? JSON.parse(data) : [];
   },
   saveHallOfFame: (entries: HallOfFameEntry[]) => {
-    localStorage.setItem(HALL_OF_FAME_KEY, JSON.stringify(entries));
-    set(ref(database, 'hallOfFame'), entries);
+    try {
+      localStorage.setItem(HALL_OF_FAME_KEY, JSON.stringify(entries));
+      set(ref(database, 'hallOfFame'), entries);
+    } catch (e) {
+      console.error("Failed to save Hall of Fame data", e);
+      if (e instanceof Error && e.name === 'QuotaExceededError') {
+        alert("저장 공간이 부족하여 명예의 전당 데이터를 저장할 수 없습니다. 이미지 용량을 더 줄여보세요.");
+      }
+    }
   },
   
   // 데이터 내보내기 (백업용)
@@ -210,9 +217,9 @@ export const storageService = {
       // 로컬 스토리지 업데이트
       if (data.members) localStorage.setItem(MEMBERS_KEY, JSON.stringify(data.members));
       if (data.attendance) localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(data.attendance));
-      // ... (필요 시 다른 항목도 추가)
-      
-      // 클라우드에 전체 업로드 (여기가 핵심!)
+      // ... 기타 데이터들
+
+      // 클라우드에 전체 업로드 (강제 저장)
       storageService.saveToCloud(data);
       return true;
     } catch (e) {
