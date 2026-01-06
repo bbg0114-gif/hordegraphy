@@ -13,7 +13,8 @@ import {
   UserX,
   Globe,
   Camera,
-  MessageSquareQuote
+  MessageSquareQuote,
+  Eye
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -22,9 +23,10 @@ interface LayoutProps {
   setActiveView: (view: ViewMode) => void;
   isAdmin: boolean;
   setIsAdmin: (status: boolean) => void;
+  onlineUserCount?: number;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, isAdmin, setIsAdmin }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, isAdmin, setIsAdmin, onlineUserCount = 0 }) => {
   const [showLogin, setShowLogin] = useState(false);
   const [password, setPassword] = useState('');
 
@@ -115,21 +117,35 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, is
             )}
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 lg:gap-5">
+            {/* 실시간 접속자 표시 */}
+            {onlineUserCount > 0 && (
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl">
+                <div className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                </div>
+                <span className="text-[10px] lg:text-xs font-black text-slate-600 uppercase tracking-tighter">
+                  LIVE: <span className="text-blue-600">{onlineUserCount}</span>
+                </span>
+              </div>
+            )}
+
             {isAdmin ? (
               <button 
                 onClick={handleLogout}
-                className="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors bg-slate-50 px-3 py-1.5 rounded-lg"
+                className="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100"
               >
                 LOGOUT
               </button>
             ) : (
               <button 
                 onClick={() => setShowLogin(true)}
-                className="px-5 py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 flex items-center gap-2"
+                className="px-4 lg:px-5 py-2 lg:py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 flex items-center gap-2"
               >
                 <Lock className="w-3.5 h-3.5" />
-                관리자 인증
+                <span className="hidden sm:inline">관리자 인증</span>
+                <span className="sm:hidden">인증</span>
               </button>
             )}
           </div>

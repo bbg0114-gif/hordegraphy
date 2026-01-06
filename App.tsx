@@ -15,6 +15,7 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewMode>(ViewMode.DASHBOARD);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  const [onlineUserCount, setOnlineUserCount] = useState(0);
   
   const [members, setMembers] = useState<Member[]>([]);
   const [bannedMembers, setBannedMembers] = useState<BannedMember[]>([]);
@@ -61,6 +62,12 @@ const App: React.FC = () => {
   const handleSetupFirebase = (config: FirebaseConfig) => {
     if (storageService.initFirebase(config)) {
       setIsCloudSyncing(true);
+      
+      // 접속자 추적 시작
+      storageService.trackPresence((count) => {
+        setOnlineUserCount(count);
+      });
+
       storageService.subscribe((data) => {
         if (data.members) setMembers(data.members);
         if (data.bannedMembers) setBannedMembers(data.bannedMembers);
@@ -363,7 +370,13 @@ const App: React.FC = () => {
   };
 
   return (
-    <Layout activeView={activeView} setActiveView={setActiveView} isAdmin={isAdmin} setIsAdmin={handleAdminToggle}>
+    <Layout 
+      activeView={activeView} 
+      setActiveView={setActiveView} 
+      isAdmin={isAdmin} 
+      setIsAdmin={handleAdminToggle}
+      onlineUserCount={onlineUserCount}
+    >
       <div className="fixed top-20 right-10 z-50">
         {isCloudSyncing ? (
           <div className="bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg flex items-center gap-2 animate-pulse">

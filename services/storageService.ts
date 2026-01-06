@@ -1,31 +1,7 @@
+
 import { Member, AttendanceRecord, MetadataRecord, BannedMember, Suggestion, FirebaseConfig } from '../types';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getDatabase, ref, onValue, set } from 'firebase/database';
-
-// -----------------------------------------------------------
-// 1. 아래 내용을 본인의 Firebase 설정값으로 바꿔주세요!
-// (Firebase 콘솔 > 프로젝트 설정 > 일반 > 내 앱 > SDK 설정 및 구성 에서 확인 가능)
-// -----------------------------------------------------------
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyBnp6vXjDZkRdVpGIaqec6g5qT9eTIRKbc",
-  authDomain: "hordegraphy.firebaseapp.com",
-  databaseURL: "https://hordegraphy-default-rtdb.firebaseio.com",
-  projectId: "hordegraphy",
-  storageBucket: "hordegraphy.firebasestorage.app",
-  messagingSenderId: "794886093992",
-  appId: "1:794886093992:web:32a2f50774d8103a78569d",
-  measurementId: "G-HZ5CJ1LDE7"
-};
-
-// 2. 앱 실행 시 무조건 Firebase에 연결합니다.
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const database = getDatabase(app);
+import { initializeApp, getApp, getApps } from 'firebase/app';
+import { getDatabase, ref, onValue, set, get, update, push, onDisconnect } from 'firebase/database';
 
 const MEMBERS_KEY = 'club_members_v1';
 const BANNED_KEY = 'club_banned_v1';
@@ -36,131 +12,143 @@ const ONLINE_METADATA_KEY = 'club_online_metadata_v1';
 const GLOBAL_SESSIONS_KEY = 'club_global_sessions_v1';
 const CLUB_LINK_KEY = 'club_link_v1';
 const SUGGESTIONS_KEY = 'club_suggestions_v1';
+const FIREBASE_CONFIG_KEY = 'club_firebase_config_v1';
 
 export const DEFAULT_SESSIONS = ['모임 1회', '모임 2회', '모임 3회', '모임 4회'];
 
+let database: any = null;
+
 export const storageService = {
-  // 초기화 함수 (이제 설정이 코드에 있으므로 단순히 true 반환)
-  initFirebase: (config?: FirebaseConfig) => {
-    return true; 
+  // Firebase Initialization
+  initFirebase: (config: FirebaseConfig) => {
+    try {
+      const app = getApps().length === 0 ? initializeApp(config) : getApp();
+      database = getDatabase(app);
+      localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(config));
+      return true;
+    } catch (e) {
+      console.error("Firebase init failed", e);
+      return false;
+    }
   },
 
   getFirebaseConfig: (): FirebaseConfig | null => {
-    return firebaseConfig;
+    const data = localStorage.getItem(FIREBASE_CONFIG_KEY);
+    return data ? JSON.parse(data) : null;
   },
 
-  isCloudEnabled: () => true, // 항상 연결됨
+  isCloudEnabled: () => database !== null,
 
-  // 실시간 업데이트 구독 (데이터가 변경되면 알림)
+  // Subscription for Realtime updates
   subscribe: (callback: (data: any) => void) => {
+    if (!database) return () => {};
     const dbRef = ref(database, '/');
     return onValue(dbRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) {
-        // 데이터가 들어오면 로컬 스토리지도 최신화하여 싱크를 맞춤
-        if (data.members) localStorage.setItem(MEMBERS_KEY, JSON.stringify(data.members));
-        if (data.attendance) localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(data.attendance));
-        // ... 필요한 경우 다른 데이터도 여기서 동기화 가능
-        callback(data);
-      }
+      if (data) callback(data);
     });
   },
 
-  // 클라우드 강제 저장
+  // Presence Tracking (접속자 수 확인)
+  trackPresence: (callback: (count: number) => void) => {
+    if (!database) return;
+    
+    // 1. 현재 내 세션 등록
+    const presenceRef = ref(database, 'presence');
+    const myPresenceRef = push(presenceRef);
+    
+    // 접속 시 데이터 기록
+    set(myPresenceRef, true);
+    
+    // 연결 끊길 시 자동 삭제 설정
+    onDisconnect(myPresenceRef).remove();
+
+    // 2. 전체 접속자 수 감시
+    onValue(presenceRef, (snapshot) => {
+      const count = snapshot.size || 0;
+      callback(count);
+    });
+  },
+
+  // Save all to Cloud
   saveToCloud: async (data: any) => {
+    if (!database) return;
     await set(ref(database, '/'), data);
   },
 
-  // --- 멤버 관리 ---
+  // Local Storage Methods (Fallbacks)
   getMembers: (): Member[] => {
     const data = localStorage.getItem(MEMBERS_KEY);
     return data ? JSON.parse(data) : [];
   },
   saveMembers: (members: Member[]) => {
     localStorage.setItem(MEMBERS_KEY, JSON.stringify(members));
-    set(ref(database, 'members'), members); // 항상 DB에 저장
+    if (database) set(ref(database, 'members'), members);
   },
-
-  // --- 차단 멤버 관리 ---
   getBannedMembers: (): BannedMember[] => {
     const data = localStorage.getItem(BANNED_KEY);
     return data ? JSON.parse(data) : [];
   },
   saveBannedMembers: (members: BannedMember[]) => {
     localStorage.setItem(BANNED_KEY, JSON.stringify(members));
-    set(ref(database, 'bannedMembers'), members);
+    if (database) set(ref(database, 'bannedMembers'), members);
   },
-
-  // --- 출석 기록 ---
   getAttendance: (): AttendanceRecord => {
     const data = localStorage.getItem(ATTENDANCE_KEY);
     return data ? JSON.parse(data) : {};
   },
   saveAttendance: (attendance: AttendanceRecord) => {
     localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(attendance));
-    set(ref(database, 'attendance'), attendance);
+    if (database) set(ref(database, 'attendance'), attendance);
   },
-
-  // --- 온라인 출석 ---
   getOnlineAttendance: (): AttendanceRecord => {
     const data = localStorage.getItem(ONLINE_ATTENDANCE_KEY);
     return data ? JSON.parse(data) : {};
   },
   saveOnlineAttendance: (attendance: AttendanceRecord) => {
     localStorage.setItem(ONLINE_ATTENDANCE_KEY, JSON.stringify(attendance));
-    set(ref(database, 'onlineAttendance'), attendance);
+    if (database) set(ref(database, 'onlineAttendance'), attendance);
   },
-
-  // --- 메타데이터 ---
   getMetadata: (): MetadataRecord => {
     const data = localStorage.getItem(METADATA_KEY);
     return data ? JSON.parse(data) : {};
   },
   saveMetadata: (metadata: MetadataRecord) => {
     localStorage.setItem(METADATA_KEY, JSON.stringify(metadata));
-    set(ref(database, 'metadata'), metadata);
+    if (database) set(ref(database, 'metadata'), metadata);
   },
-
-  // --- 온라인 메타데이터 ---
   getOnlineMetadata: (): MetadataRecord => {
     const data = localStorage.getItem(ONLINE_METADATA_KEY);
     return data ? JSON.parse(data) : {};
   },
   saveOnlineMetadata: (metadata: MetadataRecord) => {
     localStorage.setItem(ONLINE_METADATA_KEY, JSON.stringify(metadata));
-    set(ref(database, 'onlineMetadata'), metadata);
+    if (database) set(ref(database, 'onlineMetadata'), metadata);
   },
-
-  // --- 세션 이름 ---
   getGlobalSessionNames: (): string[] => {
     const data = localStorage.getItem(GLOBAL_SESSIONS_KEY);
     return data ? JSON.parse(data) : DEFAULT_SESSIONS;
   },
   saveGlobalSessionNames: (names: string[]) => {
     localStorage.setItem(GLOBAL_SESSIONS_KEY, JSON.stringify(names));
-    set(ref(database, 'globalSessionNames'), names);
+    if (database) set(ref(database, 'globalSessionNames'), names);
   },
-
-  // --- 클럽 링크 ---
   getClubLink: (): string => {
     return localStorage.getItem(CLUB_LINK_KEY) || '';
   },
   saveClubLink: (link: string) => {
     localStorage.setItem(CLUB_LINK_KEY, link);
-    set(ref(database, 'clubLink'), link);
+    if (database) set(ref(database, 'clubLink'), link);
   },
-
-  // --- 건의함 ---
   getSuggestions: (): Suggestion[] => {
     const data = localStorage.getItem(SUGGESTIONS_KEY);
     return data ? JSON.parse(data) : [];
   },
   saveSuggestions: (suggestions: Suggestion[]) => {
     localStorage.setItem(SUGGESTIONS_KEY, JSON.stringify(suggestions));
-    set(ref(database, 'suggestions'), suggestions);
+    if (database) set(ref(database, 'suggestions'), suggestions);
   },
   
-  // 데이터 내보내기 (백업용)
   exportAllData: () => {
     const data = {
       members: storageService.getMembers(),
@@ -183,17 +171,22 @@ export const storageService = {
     URL.revokeObjectURL(url);
   },
 
-  // 데이터 불러오기
   importAllData: (jsonData: string) => {
     try {
       const data = JSON.parse(jsonData);
-      // 로컬 스토리지 업데이트
-      if (data.members) localStorage.setItem(MEMBERS_KEY, JSON.stringify(data.members));
-      if (data.attendance) localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(data.attendance));
-      // ... (필요 시 다른 항목도 추가)
-
-      // 클라우드에 전체 업로드
-      storageService.saveToCloud(data);
+      if (data.members) storageService.saveMembers(data.members);
+      if (data.bannedMembers) storageService.saveBannedMembers(data.bannedMembers);
+      if (data.attendance) storageService.saveAttendance(data.attendance);
+      if (data.metadata) storageService.saveMetadata(data.metadata);
+      if (data.onlineAttendance) storageService.saveOnlineAttendance(data.onlineAttendance);
+      if (data.onlineMetadata) storageService.saveOnlineMetadata(data.onlineMetadata);
+      if (data.globalSessions) storageService.saveGlobalSessionNames(data.globalSessions);
+      if (data.clubLink) storageService.saveClubLink(data.clubLink);
+      if (data.suggestions) storageService.saveSuggestions(data.suggestions);
+      
+      if (database) {
+        storageService.saveToCloud(data);
+      }
       return true;
     } catch (e) {
       console.error('Import failed', e);

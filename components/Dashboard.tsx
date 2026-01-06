@@ -137,14 +137,14 @@ const Dashboard: React.FC<DashboardProps> = ({
     .slice(0, 5);
 
   const memberStats = members.map(member => {
-    let monthlySessions = 0;
-    let prevMonthlySessions = 0;
-    let onlineSessions = 0;
+    let offlineMonthlySessions = 0;
+    let prevOfflineMonthlySessions = 0;
+    let onlineMonthlySessions = 0;
     let noshowMonthly = 0;
-    let yearlySessions = 0;
+    let offlineYearlySessions = 0;
     let cumulativeSessions = 0;
 
-    const calc = (rec: AttendanceRecord, meta: MetadataRecord) => {
+    const calc = (rec: AttendanceRecord, meta: MetadataRecord, isOnline: boolean) => {
       Object.entries(rec).forEach(([date, dailyData]) => {
         const status = dailyData[member.id];
         if (status) {
@@ -157,40 +157,44 @@ const Dashboard: React.FC<DashboardProps> = ({
           if (attended > 0 || noshow > 0) {
             cumulativeSessions += attended;
             if (date.startsWith(monthStr)) {
-              if (rec === attendance) {
-                monthlySessions += attended;
+              if (!isOnline) {
+                offlineMonthlySessions += attended;
                 noshowMonthly += noshow;
+              } else {
+                onlineMonthlySessions += attended;
               }
-              else onlineSessions += attended;
             }
             if (date.startsWith(prevMonthStr)) {
-              if (rec === attendance) prevMonthlySessions += attended;
+              if (!isOnline) prevOfflineMonthlySessions += attended;
             }
-            if (date.startsWith(yearStr)) yearlySessions += attended;
+            if (date.startsWith(yearStr)) {
+              if (!isOnline) offlineYearlySessions += attended;
+            }
           }
         }
       });
     };
-    calc(attendance, metadata);
-    calc(onlineAttendance, onlineMetadata);
+    calc(attendance, metadata, false); // 오프라인 계산
+    calc(onlineAttendance, onlineMetadata, true); // 온라인 계산
 
     return {
       name: member.name,
-      sessions: monthlySessions + onlineSessions,
+      // 랭킹 산정 기준: 오프라인 벙 참여 횟수 (sessions, yearly)
+      sessions: offlineMonthlySessions, 
+      offline: offlineMonthlySessions,
+      online: onlineMonthlySessions,
+      prevSessions: prevOfflineMonthlySessions,
       noshow: noshowMonthly,
-      prevSessions: prevMonthlySessions,
-      offline: monthlySessions,
-      online: onlineSessions,
-      yearly: yearlySessions,
+      yearly: offlineYearlySessions,
       cumulative: cumulativeSessions
     };
   });
 
-  const monthlyRanking = [...memberStats].sort((a, b) => b.sessions - a.sessions).slice(0, 5);
-  const yearlyRanking = [...memberStats].sort((a, b) => b.yearly - a.yearly).slice(0, 5);
+  const monthlyRanking = [...memberStats].sort((a, b) => b.sessions - a.sessions).filter(s => s.sessions > 0).slice(0, 5);
+  const yearlyRanking = [...memberStats].sort((a, b) => b.yearly - a.yearly).filter(s => s.yearly > 0).slice(0, 5);
   const prevMonthlyRanking = [...memberStats].sort((a, b) => b.prevSessions - a.prevSessions).filter(s => s.prevSessions > 0).slice(0, 3);
 
-  const totalMonthlySessions = memberStats.reduce((acc, curr) => acc + curr.sessions, 0);
+  const totalMonthlySessions = memberStats.reduce((acc, curr) => acc + curr.offline + curr.online, 0);
   const totalCumulativeSessions = memberStats.reduce((acc, curr) => acc + curr.cumulative, 0);
 
   return (
@@ -279,11 +283,11 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
         <div className="bg-white p-4 lg:p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 lg:gap-4">
           <div className="w-10 h-10 lg:w-12 lg:h-12 bg-green-100 rounded-xl flex items-center justify-center text-green-600 shrink-0"><TrendingUp className="w-5 h-5 lg:w-6 lg:h-6" /></div>
-          <div><p className="text-[10px] lg:text-xs text-slate-500 font-medium uppercase">이달 참석</p><p className="text-lg lg:text-2xl font-bold text-slate-800">{totalMonthlySessions}회</p></div>
+          <div><p className="text-[10px] lg:text-xs text-slate-500 font-medium uppercase">이달 합산참석</p><p className="text-lg lg:text-2xl font-bold text-slate-800">{totalMonthlySessions}회</p></div>
         </div>
         <div className="bg-white p-4 lg:p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 lg:gap-4">
           <div className="w-10 h-10 lg:w-12 lg:h-12 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 shrink-0"><Activity className="w-5 h-5 lg:w-6 lg:h-6" /></div>
-          <div><p className="text-[10px] lg:text-xs text-slate-500 font-medium uppercase">누적 기록</p><p className="text-lg lg:text-2xl font-bold text-slate-800">{totalCumulativeSessions}회</p></div>
+          <div><p className="text-[10px] lg:text-xs text-slate-500 font-medium uppercase">누적 합계</p><p className="text-lg lg:text-2xl font-bold text-slate-800">{totalCumulativeSessions}회</p></div>
         </div>
         <div className="bg-white p-4 lg:p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 lg:gap-4">
           <div className="w-10 h-10 lg:w-12 lg:h-12 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 shrink-0"><Trophy className="w-5 h-5 lg:w-6 lg:h-6" /></div>
@@ -292,14 +296,17 @@ const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Attendance Ranking */}
+        {/* Monthly Attendance Ranking (오프라인 전용) */}
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-blue-500" />
-              이달의 참석 랭킹 (Top 5)
-            </h3>
-            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">MONTHLY TOP</span>
+            <div className="flex flex-col">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-blue-500" />
+                이달의 참석 랭킹 (Top 5)
+              </h3>
+              <span className="text-[9px] font-black text-slate-400 mt-0.5 tracking-tight">* 오프라인 벙 참여 횟수 기준</span>
+            </div>
+            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">OFFLINE ONLY</span>
           </div>
           <div className="space-y-4">
             {monthlyRanking.length > 0 ? monthlyRanking.map((stat, idx) => (
@@ -308,23 +315,31 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${idx === 0 ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'}`}>{idx + 1}</div>
                   <span className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{stat.name}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase">참석</span>
-                  <span className="font-black text-slate-700">{stat.sessions}회</span>
+                <div className="flex items-center gap-4">
+                  {stat.online > 0 && (
+                    <span className="text-[9px] font-black text-slate-300">온라인 {stat.online}회</span>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">오프</span>
+                    <span className="font-black text-slate-700">{stat.sessions}회</span>
+                  </div>
                 </div>
               </div>
-            )) : <div className="py-10 text-center text-slate-300 text-sm">참석 기록이 없습니다.</div>}
+            )) : <div className="py-10 text-center text-slate-300 text-sm">오프라인 참석 기록이 없습니다.</div>}
           </div>
         </div>
 
-        {/* Yearly/Cumulative Attendance Ranking */}
+        {/* Yearly/Cumulative Attendance Ranking (오프라인 전용) */}
         <div className="bg-white rounded-2xl p-6 border border-indigo-100 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Star className="w-5 h-5 text-indigo-500" />
-              올해 누적 참석 랭킹 (Top 5)
-            </h3>
-            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">{year} YEARLY TOP</span>
+            <div className="flex flex-col">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Star className="w-5 h-5 text-indigo-500" />
+                올해 누적 참석 랭킹 (Top 5)
+              </h3>
+              <span className="text-[9px] font-black text-indigo-300 mt-0.5 tracking-tight">* 오프라인 벙 연간 총합 기준</span>
+            </div>
+            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">{year} KST TOP</span>
           </div>
           <div className="space-y-4">
             {yearlyRanking.length > 0 ? yearlyRanking.map((stat, idx) => (
@@ -338,7 +353,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <span className="font-black text-indigo-700">{stat.yearly}회</span>
                 </div>
               </div>
-            )) : <div className="py-10 text-center text-slate-300 text-sm">기록된 데이터가 없습니다.</div>}
+            )) : <div className="py-10 text-center text-slate-300 text-sm">오프라인 기록된 데이터가 없습니다.</div>}
           </div>
         </div>
       </div>
@@ -393,11 +408,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">TOTAL</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">OFFLINE</span>
                   <span className="font-black text-slate-900 text-xl">{stat.prevSessions}회</span>
                 </div>
               </div>
-            )) : <div className="py-12 text-center text-slate-300 text-sm border-2 border-dashed border-slate-100 rounded-3xl">이전달 기록이 존재하지 않습니다.</div>}
+            )) : <div className="py-12 text-center text-slate-300 text-sm border-2 border-dashed border-slate-100 rounded-3xl">이전달 오프라인 기록이 존재하지 않습니다.</div>}
           </div>
         </div>
       </div>
