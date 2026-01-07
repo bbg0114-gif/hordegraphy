@@ -465,6 +465,8 @@ const App: React.FC = () => {
           members={members}
           attendance={attendance}
           metadata={metadata}
+          onlineAttendance={onlineAttendance}
+          onlineMetadata={onlineMetadata}
           selectedMonth={selectedDate}
           setSelectedMonth={setSelectedDate}
         />

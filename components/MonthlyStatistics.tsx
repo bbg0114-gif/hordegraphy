@@ -1,12 +1,14 @@
 
 import React from 'react';
 import { Member, AttendanceRecord, MetadataRecord } from '../types';
-import { Trophy, ChevronLeft, ChevronRight, User, Calendar, Award, Medal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Medal, Globe, MapPin, Users } from 'lucide-react';
 
 interface MonthlyStatisticsProps {
   members: Member[];
   attendance: AttendanceRecord;
   metadata: MetadataRecord;
+  onlineAttendance: AttendanceRecord;
+  onlineMetadata: MetadataRecord;
   selectedMonth: Date;
   setSelectedMonth: (date: Date) => void;
 }
@@ -15,6 +17,8 @@ const MonthlyStatistics: React.FC<MonthlyStatisticsProps> = ({
   members,
   attendance,
   metadata,
+  onlineAttendance,
+  onlineMetadata,
   selectedMonth,
   setSelectedMonth,
 }) => {
@@ -34,30 +38,77 @@ const MonthlyStatistics: React.FC<MonthlyStatisticsProps> = ({
     setSelectedMonth(newDate);
   };
 
-  const stats = members.map((member) => {
-    let count = 0;
+  // 총 개최 횟수 및 총 참여 수 계산
+  let totalOfflineHeld = 0;
+  let totalOnlineHeld = 0;
+  let totalAttendanceSum = 0;
+
+  const getStatsForType = (record: AttendanceRecord, meta: MetadataRecord, isOnline: boolean) => {
+    const heldDates = Object.keys(meta).filter(d => d.startsWith(monthStr));
+    let heldCount = 0;
+    heldDates.forEach(d => {
+      heldCount += meta[d].sessionCount || 1;
+    });
+
+    let attSum = 0;
+    Object.entries(record).forEach(([date, dailyData]) => {
+      if (date.startsWith(monthStr)) {
+        Object.values(dailyData).forEach(sessions => {
+          const activeCount = meta[date]?.sessionCount || 1;
+          attSum += sessions.slice(0, activeCount).filter(s => s === 1).length;
+        });
+      }
+    });
+
+    return { heldCount, attSum };
+  };
+
+  const offStats = getStatsForType(attendance, metadata, false);
+  const onStats = getStatsForType(onlineAttendance, onlineMetadata, true);
+
+  totalOfflineHeld = offStats.heldCount;
+  totalOnlineHeld = onStats.heldCount;
+  totalAttendanceSum = offStats.attSum + onStats.attSum;
+
+  const memberStats = members.map((member) => {
+    let offlineCount = 0;
+    let onlineCount = 0;
+
+    // 오프라인 집계
     Object.entries(attendance).forEach(([date, dailyData]) => {
       if (date.startsWith(monthStr)) {
-        const memberStatus = dailyData[member.id];
-        if (memberStatus) {
+        const status = dailyData[member.id];
+        if (status) {
           const activeCount = metadata[date]?.sessionCount || 1;
-          const attended = memberStatus.slice(0, activeCount).filter((s) => s === 1).length;
-          count += attended;
+          offlineCount += status.slice(0, activeCount).filter(s => s === 1).length;
         }
       }
     });
-    return { name: member.name, count };
+
+    // 온라인 집계
+    Object.entries(onlineAttendance).forEach(([date, dailyData]) => {
+      if (date.startsWith(monthStr)) {
+        const status = dailyData[member.id];
+        if (status) {
+          const activeCount = onlineMetadata[date]?.sessionCount || 1;
+          onlineCount += status.slice(0, activeCount).filter(s => s === 1).length;
+        }
+      }
+    });
+
+    return { name: member.name, offlineCount, onlineCount };
   });
 
-  const sortedStats = stats
-    .filter((s) => s.count > 0)
-    .sort((a, b) => b.count - a.count);
+  // 오프라인 참여 횟수 기준으로 정렬 (온라인은 순위에 영향 미치지 않음)
+  const sortedStats = memberStats
+    .filter((s) => s.offlineCount > 0 || s.onlineCount > 0)
+    .sort((a, b) => b.offlineCount - a.offlineCount);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
-      {/* Month Selector */}
-      <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm flex flex-col items-center gap-6">
-        <div className="flex items-center justify-center gap-8 w-full">
+      {/* Month Selector & Summary */}
+      <div className="bg-white p-8 lg:p-10 rounded-[40px] border border-slate-200 shadow-sm flex flex-col items-center gap-6">
+        <div className="flex items-center justify-center gap-10 w-full">
           <button 
             onClick={handlePrevMonth} 
             className="p-3 hover:bg-slate-50 rounded-2xl transition-all border border-slate-100"
@@ -66,9 +117,9 @@ const MonthlyStatistics: React.FC<MonthlyStatisticsProps> = ({
           </button>
           
           <div className="text-center">
-            <p className="text-xs font-black text-slate-400 tracking-widest uppercase mb-1">{year} YEAR</p>
-            <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter">
-              {month + 1}<span className="text-xl text-slate-400 ml-1 font-bold">월 누적 참여</span>
+            <p className="text-xs font-black text-slate-400 tracking-[0.2em] uppercase mb-1">{year} YEAR</p>
+            <h2 className="text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter">
+              {month + 1}<span className="text-2xl text-slate-300 ml-1 font-bold">월</span>
             </h2>
           </div>
 
@@ -78,6 +129,23 @@ const MonthlyStatistics: React.FC<MonthlyStatisticsProps> = ({
           >
             <ChevronRight className="w-8 h-8 text-slate-400" />
           </button>
+        </div>
+
+        {/* Monthly Summary Bar */}
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 px-6 py-4 bg-slate-50 rounded-2xl border border-slate-100">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-3.5 h-3.5 text-blue-500" />
+            <span className="text-[11px] font-bold text-slate-500 uppercase">오프라인 벙 <span className="text-slate-900">{totalOfflineHeld}회</span></span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Globe className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="text-[11px] font-bold text-slate-500 uppercase">온라인 벙 <span className="text-slate-900">{totalOnlineHeld}회</span></span>
+          </div>
+          <div className="h-3 w-[1px] bg-slate-200 hidden sm:block" />
+          <div className="flex items-center gap-2">
+            <Users className="w-3.5 h-3.5 text-green-500" />
+            <span className="text-[11px] font-bold text-slate-500 uppercase">총 참여 수 <span className="text-green-600 font-black">{totalAttendanceSum}회</span></span>
+          </div>
         </div>
       </div>
 
@@ -117,12 +185,27 @@ const MonthlyStatistics: React.FC<MonthlyStatisticsProps> = ({
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="flex items-center gap-1 justify-end">
-                  <span className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter">
-                    {stat.count}
-                  </span>
-                  <span className="text-sm font-black text-slate-400 mt-1">회</span>
+              <div className="flex items-baseline gap-4">
+                {/* 온라인 참여 횟수 (왼쪽, 작고 흐리게) */}
+                <div className="flex flex-col items-end">
+                  <span className="text-xs font-black text-slate-300 uppercase tracking-tighter">ONLINE</span>
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-lg lg:text-xl font-black text-slate-300">
+                      {stat.onlineCount}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-200">회</span>
+                  </div>
+                </div>
+
+                {/* 오프라인 참여 횟수 (오른쪽, 크게) */}
+                <div className="flex flex-col items-end">
+                  <span className="text-xs font-black text-slate-400 uppercase tracking-tighter">OFFLINE</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter">
+                      {stat.offlineCount}
+                    </span>
+                    <span className="text-sm font-black text-slate-400">회</span>
+                  </div>
                 </div>
               </div>
             </div>
