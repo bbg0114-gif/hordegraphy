@@ -31,6 +31,7 @@ const ONLINE_ATTENDANCE_KEY = 'club_online_attendance_v1';
 const ONLINE_METADATA_KEY = 'club_online_metadata_v1';
 const GLOBAL_SESSIONS_KEY = 'club_global_sessions_v1';
 const CLUB_LINK_KEY = 'club_link_v1';
+const CLUB_NOTICE_KEY = 'club_notice_v1'; // 신규 추가됨
 const SUGGESTIONS_KEY = 'club_suggestions_v1';
 const HALL_OF_FAME_KEY = 'club_hall_of_fame_v1';
 
@@ -159,6 +160,15 @@ export const storageService = {
     set(ref(database, 'clubLink'), link);
   },
 
+  // --- [신규] 클럽 공지사항 ---
+  getClubNotice: (): string => {
+    return localStorage.getItem(CLUB_NOTICE_KEY) || '';
+  },
+  saveClubNotice: (notice: string) => {
+    localStorage.setItem(CLUB_NOTICE_KEY, notice);
+    set(ref(database, 'clubNotice'), notice);
+  },
+
   // --- 건의함 ---
   getSuggestions: (): Suggestion[] => {
     const data = localStorage.getItem(SUGGESTIONS_KEY);
@@ -169,7 +179,7 @@ export const storageService = {
     set(ref(database, 'suggestions'), suggestions);
   },
 
-  // --- 명예의 전당 (Hall of Fame) ---
+  // --- 명예의 전당 ---
   getHallOfFame: (): HallOfFameEntry[] => {
     const data = localStorage.getItem(HALL_OF_FAME_KEY);
     return data ? JSON.parse(data) : [];
@@ -186,7 +196,7 @@ export const storageService = {
     }
   },
   
-  // 데이터 내보내기 (백업용)
+  // 데이터 내보내기 (공지사항 포함)
   exportAllData: () => {
     const data = {
       members: storageService.getMembers(),
@@ -197,6 +207,7 @@ export const storageService = {
       onlineMetadata: storageService.getOnlineMetadata(),
       globalSessions: storageService.getGlobalSessionNames(),
       clubLink: storageService.getClubLink(),
+      clubNotice: storageService.getClubNotice(), // 추가됨
       suggestions: storageService.getSuggestions(),
       hallOfFame: storageService.getHallOfFame(),
       exportDate: new Date().toISOString()
@@ -210,13 +221,14 @@ export const storageService = {
     URL.revokeObjectURL(url);
   },
 
-  // 데이터 불러오기
+  // 데이터 불러오기 (공지사항 포함)
   importAllData: (jsonData: string) => {
     try {
       const data = JSON.parse(jsonData);
       // 로컬 스토리지 업데이트
       if (data.members) localStorage.setItem(MEMBERS_KEY, JSON.stringify(data.members));
       if (data.attendance) localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(data.attendance));
+      
       // ... 기타 데이터들
 
       // 클라우드에 전체 업로드 (강제 저장)
