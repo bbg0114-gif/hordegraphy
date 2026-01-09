@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [globalSessionNames, setGlobalSessionNames] = useState<string[]>(DEFAULT_SESSIONS);
   const [clubLink, setClubLink] = useState('');
+  const [clubNotice, setClubNotice] = useState('');
 
   // 로컬 시간 기준 YYYY-MM-DD 생성 함수
   const getLocalDateStr = (date: Date) => {
@@ -49,6 +50,7 @@ const App: React.FC = () => {
     setOnlineMetadata(storageService.getOnlineMetadata());
     setGlobalSessionNames(storageService.getGlobalSessionNames());
     setClubLink(storageService.getClubLink());
+    setClubNotice(storageService.getClubNotice());
     setHallOfFame(storageService.getHallOfFame());
   };
 
@@ -80,6 +82,7 @@ const App: React.FC = () => {
         if (data.onlineMetadata) setOnlineMetadata(data.onlineMetadata);
         if (data.globalSessionNames) setGlobalSessionNames(data.globalSessionNames);
         if (data.clubLink) setClubLink(data.clubLink);
+        if (data.clubNotice) setClubNotice(data.clubNotice);
         if (data.suggestions) setSuggestions(data.suggestions);
         if (data.hallOfFame) setHallOfFame(data.hallOfFame);
       });
@@ -89,6 +92,12 @@ const App: React.FC = () => {
   const handleAdminToggle = (status: boolean) => {
     setIsAdmin(status);
     sessionStorage.setItem('is_admin', status.toString());
+  };
+
+  const handleUpdateClubNotice = (notice: string) => {
+    if (!isAdmin) return;
+    setClubNotice(notice);
+    storageService.saveClubNotice(notice);
   };
 
   const dateStr = getLocalDateStr(selectedDate);
@@ -438,6 +447,8 @@ const App: React.FC = () => {
           onClearMonth={handleClearMonth}
           isAdmin={isAdmin}
           clubLink={clubLink}
+          clubNotice={clubNotice}
+          onUpdateNotice={handleUpdateClubNotice}
         />
       )}
       
